@@ -13,7 +13,7 @@ description: >
   PythStructs, Hermes, HermesClient, getPriceNoOlderThan, updatePriceFeeds,
   Pyth MCP, mcp.pyth.network, or price oracle for EVM/Solana/multi-chain smart
   contracts and off-chain apps.
-version: 0.4.0
+version: 0.4.1
 ---
 
 # Pyth Price Feeds Integration
