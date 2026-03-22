@@ -1,6 +1,6 @@
 {
   "name": "pyth-pricefeeds-skill",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Pyth Price Feeds integration skill for AI-powered IDEs",
   "bin": {
     "pyth-pricefeeds-skill": "./bin/cli.js"
