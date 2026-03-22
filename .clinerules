@@ -1,0 +1,52 @@
+# Pyth Price Feeds Skill
+
+Activate on: "price feeds", "Pyth oracle", "on-chain prices", "price oracle", "Hermes", "IPyth",
+"Pyth MCP", "list all feeds", "discover feed IDs", "get_symbols", "mcp.pyth.network",
+"circuit breaker", "perps oracle", "perpetuals", "funding rate", "liquidation bot",
+"price keeper", "migrate from Chainlink", "upgradeable proxy", "Express Relay", "batch prices"
+
+## Workflow
+1. Detect stack: `foundry.toml` → Foundry | `hardhat.config.*` → Hardhat | `Anchor.toml` → Anchor
+2. Install: `npm install @pythnetwork/pyth-sdk-solidity` (EVM) or `@pythnetwork/hermes-client` (off-chain)
+3. Foundry remappings: `@pythnetwork/pyth-sdk-solidity/=node_modules/@pythnetwork/pyth-sdk-solidity`
+
+## EVM Pull Integration
+- Import `IPyth` + `PythStructs` from SDK
+- Store `IPyth pyth` in constructor with Pyth contract address
+- Accept `bytes[] calldata priceUpdate` in functions needing prices
+- `uint fee = pyth.getUpdateFee(priceUpdate)` → `pyth.updatePriceFeeds{value: fee}(priceUpdate)` → `pyth.getPriceNoOlderThan(feedId, maxAge)`
+- Price struct: `{int64 price, uint64 conf, int32 expo, uint publishTime}` — real = price × 10^expo
+
+## Critical Rules
+- ALWAYS `getPriceNoOlderThan` — never `getPriceUnsafe` in production
+- ALWAYS dynamic fee via `getUpdateFee` — never hardcode
+- ALWAYS convert fixed-point: price × 10^expo
+- Lending: collateral = price - conf, debt = price + conf
+
+## Chain Addresses
+- Ethereum: `0x4305FB66699C3B2702D4d05CF36551390A4c69C6`
+- Arbitrum/Optimism/Polygon: `0xff1a0f4744e8582DF1aE09D5611b887B6a12925C`
+- Base: `0x8250f4aF4B972684F7b336503E2D6dFeDeB1487a`
+
+## Feed ID Discovery (Prefer Dynamic)
+- **Pyth MCP** (if available): `get_symbols(query="ETH", asset_type="crypto")`
+- **Hermes API**: `GET https://hermes.pyth.network/v2/price_feeds?query=btc&asset_type=crypto`
+- **Hardcoded**: ETH/USD `0xff61491a...fd0ace` | BTC/USD `0xe62df6c8...415b43`
+
+## Hermes
+- REST: `https://hermes.pyth.network/v2/updates/price/latest?ids[]=<feedId>`
+- SSE: `https://hermes.pyth.network/v2/updates/price/stream?ids[]=<feedId>`
+- Feed catalog: `https://hermes.pyth.network/v2/price_feeds`
+
+## Pyth MCP (Optional)
+- Endpoint: `https://mcp.pyth.network/mcp` (Streamable HTTP)
+- Tools: `get_symbols`, `get_latest_price`, `get_historical_price`, `get_candlestick_data`
+- Complementary to this skill — MCP for discovery, skill for implementation
+
+## Advanced Patterns
+- **Circuit breaker**: `PriceGuard.sol` | **Perps**: `PerpsOracle.sol` | **Batch**: `BatchPriceConsumer.sol`
+- **UUPS proxy**: `PythProxy.sol` | **Keeper**: `price-keeper.ts` | **Liquidation**: `liquidation-bot.ts`
+- **Historical**: `benchmarks-client.ts` | **Dashboard**: `price-dashboard.html`
+- **Chainlink migration**: `references/migration-from-chainlink.md`
+- **MEV protection**: `references/express-relay.md`
+- **All patterns**: `references/patterns.md` (TWAP, multi-feed, fallbacks, Gelato)

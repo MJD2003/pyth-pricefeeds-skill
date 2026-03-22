@@ -1,0 +1,120 @@
+# Pyth Price Feeds Integration Skill
+
+## Activation Triggers
+Activate when the user mentions: "Pyth price feeds", "oracle prices", "on-chain prices",
+"get ETH price", "price oracle", "Pyth oracle", "IPyth", "Hermes API", "getPriceNoOlderThan",
+"updatePriceFeeds", "price feed", "pull oracle", "push oracle", "confidence interval",
+"cross-rate", "oracle swap", "lending oracle", "stream prices", "HermesClient",
+"Pyth MCP", "list all feeds", "discover feed IDs", "fetch all price feeds",
+"get_symbols", "dynamic feed discovery", "mcp.pyth.network",
+"circuit breaker", "price guard", "batch prices", "perpetuals oracle", "perps oracle",
+"funding rate", "liquidation bot", "price keeper", "historical prices", "benchmarks",
+"migrate from Chainlink", "upgradeable proxy", "Express Relay", "MEV protection".
+
+## Workflow — Always Follow In Order
+
+### 1. Detect Stack First
+Scan the codebase before generating code:
+- `foundry.toml` → Foundry | `hardhat.config.*` → Hardhat | `Anchor.toml` → Solana/Anchor
+- `package.json` with `ethers` → ethers.js | `viem` → viem | `@solana/web3.js` → Solana
+- `requirements.txt` with `web3`/`httpx` → Python
+- Match existing naming conventions and directory layout
+
+### 2. Choose Integration Mode
+- **Pull** (default): Fetch from Hermes → update on-chain → read price
+- **Push**: Read on-chain directly (feed must be in push list)
+- **Off-chain only**: Use Hermes REST/SSE/SDK for display/backend
+
+### 3. Install SDK
+- EVM Foundry: `npm install @pythnetwork/pyth-sdk-solidity` + remappings.txt
+- EVM Hardhat: `npm install @pythnetwork/pyth-sdk-solidity`
+- Solana: `pyth-solana-receiver-sdk = "0.4.0"` in Cargo.toml
+- Off-chain TS: `npm install @pythnetwork/hermes-client`
+- Off-chain Python: `pip install httpx`
+
+### 4. Contract Must Have (EVM Pull)
+1. Import `IPyth` and `PythStructs` from SDK
+2. Store `IPyth pyth` in constructor
+3. Accept `bytes[] calldata priceUpdate` parameter
+4. `pyth.getUpdateFee(priceUpdate)` for fee
+5. `pyth.updatePriceFeeds{value: fee}(priceUpdate)` to update
+6. `pyth.getPriceNoOlderThan(feedId, maxAge)` to read
+
+### 5. Price Struct
+```
+Price { int64 price, uint64 conf, int32 expo, uint publishTime }
+real_price = price × 10^expo
+```
+
+### 6. Critical Rules
+- **Always** use `getPriceNoOlderThan` — never `getPriceUnsafe` in production
+- **Always** use dynamic `getUpdateFee(priceUpdate)` — never hardcode fees
+- **Always** convert fixed-point: `real_price = price × 10^expo`
+- For lending: use `price - conf` for collateral, `price + conf` for debt
+- Handle market hours: equity/FX feeds go stale outside trading hours
+
+### Common Contract Addresses
+- Ethereum: `0x4305FB66699C3B2702D4d05CF36551390A4c69C6`
+- Arbitrum/Optimism/Polygon: `0xff1a0f4744e8582DF1aE09D5611b887B6a12925C`
+- Base: `0x8250f4aF4B972684F7b336503E2D6dFeDeB1487a`
+- BNB Chain: `0x4D7E825f80bDf85e913E0DD2A2D54927e9dE1594`
+
+### Feed ID Discovery (Prefer Dynamic Over Hardcoded)
+
+**Option A — Pyth MCP** (if `pyth` MCP server is configured in IDE):
+- `get_symbols(query="ETH", asset_type="crypto")` → discover feeds interactively
+- `get_latest_price(symbols=["Crypto.ETH/USD"])` → verify prices (needs Pro token)
+- MCP endpoint: `https://mcp.pyth.network/mcp` (Streamable HTTP, no auth needed)
+
+**Option B — Hermes API** (always available, no setup):
+- Fetch ALL feeds: `GET https://hermes.pyth.network/v2/price_feeds`
+- Filter: `?asset_type=crypto` or `?query=btc`
+- Each feed returns `{ id, attributes: { symbol, asset_type, base, quote_currency } }`
+
+**Option C — Hardcoded** (for known feeds):
+- BTC/USD: `0xe62df6c8...415b43`
+- ETH/USD: `0xff61491a...fd0ace`
+- SOL/USD: `0xef0d8b6f...b56d`
+
+### Hermes (Off-Chain)
+- REST: `GET https://hermes.pyth.network/v2/updates/price/latest?ids[]=<feedId>`
+- SSE: `GET https://hermes.pyth.network/v2/updates/price/stream?ids[]=<feedId>`
+- Feed catalog: `GET https://hermes.pyth.network/v2/price_feeds`
+- SDK: `new HermesClient("https://hermes.pyth.network")`
+
+## Pyth MCP Server (Optional)
+If the user has the Pyth MCP server configured (`https://mcp.pyth.network/mcp`), leverage it:
+- Use `get_symbols` to discover feeds instead of hardcoding IDs
+- Use `get_latest_price` to verify price data during development
+- Use `get_candlestick_data` for historical/chart data
+- **MCP is complementary** — actual on-chain code (contracts, Hermes clients) is still needed
+- See `references/mcp-integration.md` for setup across all IDEs
+
+### Advanced Patterns
+- **Circuit breaker**: `assets/solidity/PriceGuard.sol` — deviation guard + cooldown
+- **Perps oracle**: `assets/solidity/PerpsOracle.sol` — mark price, funding rate, liquidation
+- **Batch reading**: `assets/solidity/BatchPriceConsumer.sol` — gas-optimized multi-feed
+- **Upgradeable proxy**: `assets/solidity/PythProxy.sol` — UUPS proxy for production DeFi
+- **Liquidation bot**: `assets/typescript/liquidation-bot.ts` — position monitor + liquidator
+- **Price keeper**: `assets/typescript/price-keeper.ts` — automated on-chain updater
+- **Historical prices**: `assets/typescript/benchmarks-client.ts` — Pyth Benchmarks API
+- **Live dashboard**: `assets/typescript/price-dashboard.html` — standalone SSE price viewer
+- **Chainlink migration**: `references/migration-from-chainlink.md` — step-by-step guide
+- **MEV protection**: `references/express-relay.md` — Express Relay integration
+
+## Deeper Reference
+For full patterns, read from the skill directory:
+- `assets/solidity/*.sol` — 12 contract patterns + interfaces + test
+- `assets/typescript/*.ts` — Hermes, ethers, viem, React hook, utils, feed-discovery, keeper, liquidation bot
+- `assets/solana/` — Anchor program + frontend client
+- `assets/python/` — Hermes REST + web3 client + feed discovery
+- `references/chainlist.md` — Full chain addresses
+- `references/feed-ids.md` — 50+ feed IDs + dynamic discovery guide
+- `references/patterns.md` — TWAP, multi-feed, fallbacks, circuit breakers, keepers, Gelato
+- `references/migration-from-chainlink.md` — Chainlink → Pyth migration
+- `references/express-relay.md` — MEV protection via Express Relay
+- `references/mcp-integration.md` — Pyth MCP server setup & tools
+- `references/api-reference.md` — IPyth interface, Hermes API
+- `references/best-practices.md` — Fixed-point, staleness, confidence, gas benchmarks
+- `references/security.md` — Oracle risks, confidence safety
+- `references/debugging.md` — StalePrice errors, common issues

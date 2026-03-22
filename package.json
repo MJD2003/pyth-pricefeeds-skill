@@ -1,0 +1,53 @@
+{
+  "name": "pyth-pricefeeds-skill",
+  "version": "0.4.0",
+  "description": "Pyth Price Feeds integration skill for AI-powered IDEs",
+  "bin": {
+    "pyth-pricefeeds-skill": "./bin/cli.js"
+  },
+  "keywords": [
+    "pyth",
+    "price-feeds",
+    "oracle",
+    "solidity",
+    "solana",
+    "evm",
+    "defi",
+    "smart-contracts",
+    "ai-skill",
+    "cursor",
+    "windsurf",
+    "claude-code",
+    "mcp",
+    "hermes",
+    "express-relay",
+    "perpetuals",
+    "liquidation"
+  ],
+  "scripts": {
+    "verify": "node bin/cli.js verify",
+    "prepublishOnly": "node bin/cli.js verify"
+  },
+  "author": "",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MJD2003/pyth-pricefeeds-skill"
+  },
+  "files": [
+    "bin/",
+    "SKILL.md",
+    "references/",
+    "assets/",
+    "scripts/",
+    ".cursorrules",
+    ".cursor/",
+    ".windsurfrules",
+    ".claude/",
+    ".github/",
+    ".clinerules",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ]
+}

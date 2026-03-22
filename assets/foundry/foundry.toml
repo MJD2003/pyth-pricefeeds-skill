@@ -1,0 +1,26 @@
+# Pyth Price Feeds — Foundry Configuration Template
+#
+# Copy to your project root and adapt as needed.
+# Install SDK first: npm init -y && npm install @pythnetwork/pyth-sdk-solidity
+
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib", "node_modules"]
+solc = "0.8.24"
+
+# Allow reading from node_modules for Pyth SDK
+fs_permissions = [{ access = "read", path = "node_modules" }]
+
+# Remappings — also keep in sync with remappings.txt
+remappings = [
+    "@pythnetwork/pyth-sdk-solidity/=node_modules/@pythnetwork/pyth-sdk-solidity/",
+]
+
+[profile.default.fuzz]
+runs = 256
+
+# Optional: Fork testing against a live chain with Pyth deployed
+# [profile.fork]
+# eth_rpc_url = "${RPC_URL}"
+# block_number = "latest"

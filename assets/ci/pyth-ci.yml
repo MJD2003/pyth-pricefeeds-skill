@@ -1,0 +1,146 @@
+# Pyth Price Feeds — GitHub Actions CI Template
+#
+# Copy to .github/workflows/pyth-ci.yml in your project.
+# Supports both Foundry and Hardhat testing.
+#
+# Adapt the paths, Solidity version, and test commands to your project.
+
+name: Pyth Price Feed Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  FOUNDRY_PROFILE: ci
+
+jobs:
+  # ─── Foundry Tests ──────────────────────────────
+  foundry:
+    name: Foundry Tests
+    runs-on: ubuntu-latest
+    if: hashFiles('foundry.toml') != ''
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Install Node dependencies (Pyth SDK)
+        run: |
+          npm install @pythnetwork/pyth-sdk-solidity
+          echo "Installed Pyth SDK"
+
+      - name: Run Forge build
+        run: forge build --sizes
+
+      - name: Run Forge tests
+        run: forge test -vvv
+
+      - name: Run Forge coverage
+        run: forge coverage --report summary
+        continue-on-error: true
+
+      - name: Gas report
+        run: forge test --gas-report
+        continue-on-error: true
+
+  # ─── Hardhat Tests ─────────────────────────────
+  hardhat:
+    name: Hardhat Tests
+    runs-on: ubuntu-latest
+    if: hashFiles('hardhat.config.*') != ''
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Compile contracts
+        run: npx hardhat compile
+
+      - name: Run tests
+        run: npx hardhat test
+
+      - name: Gas report
+        run: REPORT_GAS=true npx hardhat test
+        continue-on-error: true
+
+  # ─── Solidity Lint ─────────────────────────────
+  lint:
+    name: Solidity Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install solhint
+        run: npm install -g solhint
+
+      - name: Run solhint
+        run: solhint 'contracts/**/*.sol' 'src/**/*.sol'
+        continue-on-error: true
+
+  # ─── TypeScript Check ──────────────────────────
+  typecheck:
+    name: TypeScript Check
+    runs-on: ubuntu-latest
+    if: hashFiles('tsconfig.json') != ''
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+  # ─── Pyth Setup Verification ───────────────────
+  verify-pyth:
+    name: Verify Pyth Setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check Pyth SDK installed
+        run: |
+          if [ -f "package.json" ]; then
+            grep -q "pyth-sdk-solidity\|hermes-client\|pyth-solana" package.json && \
+              echo "✓ Pyth SDK found in package.json" || \
+              echo "⚠ No Pyth SDK in package.json"
+          fi
+
+      - name: Check Pyth imports
+        run: |
+          echo "Solidity imports:"
+          grep -r "pythnetwork" --include="*.sol" . || echo "  No Solidity imports found"
+          echo "TypeScript imports:"
+          grep -r "pythnetwork\|hermes" --include="*.ts" . || echo "  No TypeScript imports found"
+
+      - name: Verify Hermes connectivity
+        run: |
+          curl -s "https://hermes.pyth.network/v2/updates/price/latest?ids[]=0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace" | \
+            python3 -c "import sys,json; d=json.load(sys.stdin); print('✓ Hermes OK — ETH/USD data received')" || \
+            echo "⚠ Hermes connectivity issue"

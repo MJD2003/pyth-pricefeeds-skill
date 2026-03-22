@@ -1,0 +1,89 @@
+# Pyth Price Feeds Integration Skill
+
+## When to Activate
+Activate when the user's request involves ANY of:
+- Integrating Pyth price feeds or oracle prices
+- Getting on-chain prices (ETH, BTC, SOL, etc.)
+- Building DeFi with price oracles (lending, swaps, derivatives)
+- Using Hermes API for real-time prices
+- Streaming live prices in a frontend/backend
+- Terms: IPyth, PythStructs, getPriceNoOlderThan, updatePriceFeeds, Hermes, HermesClient, pull oracle, push oracle
+
+Or when working on .sol, .ts, .rs, .py files that import from `@pythnetwork/`.
+Also activate for: "Pyth MCP", "list all feeds", "discover feed IDs", "fetch all price feeds",
+"get_symbols", "dynamic feed discovery", "mcp.pyth.network", "circuit breaker", "price guard",
+"perps oracle", "perpetuals", "funding rate", "liquidation bot", "price keeper",
+"migrate from Chainlink", "upgradeable proxy", "Express Relay", "batch prices", "historical prices".
+
+## Quick Workflow
+
+### 1. Detect Stack
+- `foundry.toml` → Foundry | `hardhat.config.*` → Hardhat | `Anchor.toml` → Anchor
+- `package.json` with `ethers`/`viem`/`@solana/web3.js` → match library
+- Match existing code style and conventions
+
+### 2. Install SDK
+- EVM: `npm install @pythnetwork/pyth-sdk-solidity`
+- Solana: `pyth-solana-receiver-sdk = "0.4.0"`
+- Off-chain: `npm install @pythnetwork/hermes-client`
+
+### 3. EVM Pull Integration (Default)
+```solidity
+import "@pythnetwork/pyth-sdk-solidity/IPyth.sol";
+import "@pythnetwork/pyth-sdk-solidity/PythStructs.sol";
+
+// Constructor: store IPyth pyth = IPyth(pythContract)
+// Function: accept bytes[] calldata priceUpdate
+// 1. uint fee = pyth.getUpdateFee(priceUpdate);
+// 2. pyth.updatePriceFeeds{value: fee}(priceUpdate);
+// 3. PythStructs.Price memory p = pyth.getPriceNoOlderThan(feedId, maxAge);
+// 4. real_price = p.price * 10^p.expo
+```
+
+### 4. Critical Rules
+- ALWAYS use `getPriceNoOlderThan` with staleness check
+- ALWAYS use dynamic `getUpdateFee(priceUpdate)` — never hardcode
+- ALWAYS convert fixed-point: `price × 10^expo`
+- For lending: `price - conf` for collateral, `price + conf` for debt
+- For push integration: no update needed, just `getPriceNoOlderThan`
+
+### Key Addresses
+- Ethereum: `0x4305FB66699C3B2702D4d05CF36551390A4c69C6`
+- Arbitrum/Optimism/Polygon: `0xff1a0f4744e8582DF1aE09D5611b887B6a12925C`
+- Base: `0x8250f4aF4B972684F7b336503E2D6dFeDeB1487a`
+
+### Feed ID Discovery (Prefer Dynamic Over Hardcoded)
+
+**Pyth MCP** (if configured in IDE): `get_symbols(query="ETH", asset_type="crypto")`
+**Hermes API** (always available): `GET https://hermes.pyth.network/v2/price_feeds?query=btc`
+**Hardcoded** (common feeds):
+- BTC/USD: `0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43`
+- ETH/USD: `0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace`
+- SOL/USD: `0xef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d`
+
+### Hermes (Off-Chain)
+- REST: `https://hermes.pyth.network/v2/updates/price/latest?ids[]=<id>`
+- SSE: `https://hermes.pyth.network/v2/updates/price/stream?ids[]=<id>`
+- Feed catalog: `https://hermes.pyth.network/v2/price_feeds`
+- SDK: `new HermesClient("https://hermes.pyth.network")`
+
+### Pyth MCP Server (Optional)
+Endpoint: `https://mcp.pyth.network/mcp` | Transport: Streamable HTTP
+Tools: `get_symbols`, `get_latest_price` (needs Pro token), `get_historical_price`, `get_candlestick_data`
+MCP is for AI-assisted data exploration — actual on-chain code still needed.
+
+## Advanced Patterns
+- **Circuit breaker**: `PriceGuard.sol` | **Perps oracle**: `PerpsOracle.sol`
+- **Batch reading**: `BatchPriceConsumer.sol` | **UUPS proxy**: `PythProxy.sol`
+- **Liquidation bot**: `liquidation-bot.ts` | **Price keeper**: `price-keeper.ts`
+- **Historical prices**: `benchmarks-client.ts` | **Dashboard**: `price-dashboard.html`
+- **Chainlink migration**: `references/migration-from-chainlink.md`
+- **MEV protection**: `references/express-relay.md`
+- **Common patterns**: `references/patterns.md` (TWAP, multi-feed, fallbacks, Gelato)
+
+## Deeper Reference
+Read from the skill directory for full patterns:
+- `assets/solidity/*.sol` — 12 contract patterns + interfaces + test
+- `assets/typescript/*.ts` — Off-chain clients, React hook, feed-discovery, keeper, liquidation bot
+- `references/` — Chain addresses, API reference, feed IDs, best practices, patterns, debugging, security, migration, express-relay
+- `references/mcp-integration.md` — Pyth MCP server setup & tools
