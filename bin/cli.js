@@ -383,64 +383,76 @@ async function main() {
   console.log(dim("  Real-time oracle prices for AI-powered IDEs"));
   console.log("");
 
-  if (command === "install" || command === "i") {
+  if (command === "install" || command === "i" || command === "") {
     const target = args[1] || "";
 
     if (target === "windsurf" || target === "all") {
       console.log(cyan("  Windsurf / Cascade"));
       installWindsurf();
-      console.log("");
     }
     if (target === "cursor" || target === "all") {
       console.log(cyan("  Cursor"));
       installCursor();
-      console.log("");
     }
     if (target === "claude" || target === "all") {
       console.log(cyan("  Claude Code"));
       installClaude();
-      console.log("");
     }
     if (target === "copilot") {
       const dir = args[2] || process.cwd();
       console.log(cyan("  GitHub Copilot"));
       installCopilot(dir);
-      console.log("");
     }
     if (target === "cline") {
       const dir = args[2] || process.cwd();
       console.log(cyan("  Cline / Roo"));
       installCline(dir);
-      console.log("");
     }
 
     if (!target) {
-      // Interactive mode
-      console.log("  Which IDEs? (comma-separated, or 'all')");
+      // Interactive numbered menu
+      console.log("  Select where to install:\n");
+      console.log(`    ${bold("1.")} ${cyan("Windsurf / Cascade")}  ${dim("\u2014 global skill, always available in all projects")}`);
+      console.log(`    ${bold("2.")} ${cyan("Cursor")}              ${dim("\u2014 global rule, activates on .sol/.ts/.rs/.py files")}`);
+      console.log(`    ${bold("3.")} ${cyan("Claude Code")}         ${dim("\u2014 global skill + /pricefeeds slash command")}`);
+      console.log(`    ${bold("4.")} ${cyan("All of the above")}    ${dim("\u2014 install for Windsurf + Cursor + Claude Code")}`);
+      console.log(`    ${bold("5.")} ${cyan("Copilot")}             ${dim("\u2014 per-project .github/copilot-instructions.md")}`);
+      console.log(`    ${bold("6.")} ${cyan("Cline / Roo")}         ${dim("\u2014 per-project .clinerules")}`);
       console.log("");
-      console.log("    windsurf  — global skill, always available");
-      console.log("    cursor    — global rule, activates on .sol/.ts/.rs/.py files");
-      console.log("    claude    — global skill + /pricefeeds command");
-      console.log("    all       — install everywhere");
-      console.log("");
-      const answer = await ask("  > ");
-      const choices = answer.toLowerCase().split(",").map((s) => s.trim());
+      const answer = await ask("  Enter your choice (1-6, or comma-separated e.g. 1,2): ");
 
-      if (choices.includes("all")) {
-        choices.length = 0;
-        choices.push("windsurf", "cursor", "claude");
+      const picks = answer.split(",").map((s) => s.trim());
+      const selected = new Set();
+
+      for (const p of picks) {
+        if (p === "4" || p.toLowerCase() === "all") {
+          selected.add("windsurf");
+          selected.add("cursor");
+          selected.add("claude");
+        }
+        if (p === "1" || p.toLowerCase() === "windsurf") selected.add("windsurf");
+        if (p === "2" || p.toLowerCase() === "cursor") selected.add("cursor");
+        if (p === "3" || p.toLowerCase() === "claude") selected.add("claude");
+        if (p === "5" || p.toLowerCase() === "copilot") selected.add("copilot");
+        if (p === "6" || p.toLowerCase() === "cline") selected.add("cline");
+      }
+
+      if (selected.size === 0) {
+        console.log(yellow("\n  No valid selection. Run again and pick 1-6."));
+        console.log("");
+        return;
       }
 
       console.log("");
-      for (const c of choices) {
-        if (c === "windsurf") { console.log(cyan("  Windsurf")); installWindsurf(); console.log(""); }
-        if (c === "cursor") { console.log(cyan("  Cursor")); installCursor(); console.log(""); }
-        if (c === "claude") { console.log(cyan("  Claude Code")); installClaude(); console.log(""); }
-      }
+      if (selected.has("windsurf")) { console.log(cyan("  Windsurf / Cascade")); installWindsurf(); console.log(""); }
+      if (selected.has("cursor")) { console.log(cyan("  Cursor")); installCursor(); console.log(""); }
+      if (selected.has("claude")) { console.log(cyan("  Claude Code")); installClaude(); console.log(""); }
+      if (selected.has("copilot")) { console.log(cyan("  GitHub Copilot")); installCopilot(process.cwd()); console.log(""); }
+      if (selected.has("cline")) { console.log(cyan("  Cline / Roo")); installCline(process.cwd()); console.log(""); }
     }
 
     showStatus();
-    console.log("  You're set. Open any project and ask your AI to add Pyth price feeds.");
+    console.log(green("  Done! Open any project and ask your AI to add Pyth price feeds."));
     console.log("");
 
   } else if (command === "status" || command === "s") {
@@ -463,35 +475,26 @@ async function main() {
     }
     console.log("");
 
-  } else {
-    // Help
+  } else if (command === "help" || command === "h" || command === "--help" || command === "-h") {
     console.log("  Usage:");
     console.log("");
-    console.log(`    ${bold("npx pyth-pricefeeds-skill install")} [target]`);
+    console.log(`    ${bold("npx pyth-pricefeeds-skill")}`);
+    console.log("      Interactive installer — pick your IDEs from a menu");
     console.log("");
-    console.log("    Targets:");
-    console.log("      all        Install for Windsurf + Cursor + Claude Code");
-    console.log("      windsurf   Global skill (always available in all projects)");
-    console.log("      cursor     Global rule (activates on Solidity/TS/Rust/Python files)");
-    console.log("      claude     Global skill + /pricefeeds slash command");
-    console.log("      copilot    Per-project .github/copilot-instructions.md");
-    console.log("      cline      Per-project .clinerules");
-    console.log("      (none)     Interactive picker");
+    console.log(`    ${bold("npx pyth-pricefeeds-skill install")} [target]`);
+    console.log("      Targets: all, windsurf, cursor, claude, copilot, cline");
     console.log("");
     console.log(`    ${bold("npx pyth-pricefeeds-skill status")}`);
-    console.log("      Show what's installed where");
-    console.log("");
     console.log(`    ${bold("npx pyth-pricefeeds-skill update")}`);
-    console.log("      Re-install to refresh files after a skill update");
-    console.log("");
     console.log(`    ${bold("npx pyth-pricefeeds-skill verify")}`);
-    console.log("      Validate that all skill files are present and versions match");
-    console.log("");
     console.log(`    ${bold("npx pyth-pricefeeds-skill uninstall")} [target]`);
-    console.log("      Remove installed skill files");
     console.log("");
-    console.log("  After installing, the skill is permanent. No per-project setup.");
-    console.log('  Just open any project and say "add Pyth price feed to my project".');
+  } else {
+    // Unknown command — suggest install
+    console.log(yellow(`  Unknown command: "${command}"`));
+    console.log("");
+    console.log(`  Did you mean ${bold("npx pyth-pricefeeds-skill install")}?`);
+    console.log(`  Run ${bold("npx pyth-pricefeeds-skill help")} for all commands.`);
     console.log("");
   }
 }
